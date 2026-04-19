@@ -186,28 +186,35 @@ function StatusStats:ensureFooterModeShowsPluginContent()
 end
 
 function StatusStats:showDebugInfo()
-    local footer = self.ui and self.ui.view and self.ui.view.footer
-    local statistics = self:getStatisticsPlugin()
-    local additional_count = footer and footer.additional_footer_content and #footer.additional_footer_content or 0
-    local sample_text = self:getStatusText(false) or "nil"
-    local session = self:getCurrentSessionStats()
-    local today = self:getTodayStats()
+    local ok, result = pcall(function()
+        local footer = self.ui and self.ui.view and self.ui.view.footer
+        local statistics = self:getStatisticsPlugin()
+        local additional_count = footer and footer.additional_footer_content and #footer.additional_footer_content or 0
+        local sample_ok, sample_text = pcall(self.getStatusText, self, false)
+        local session_ok, session = pcall(self.getCurrentSessionStats, self)
+        local today_ok, today = pcall(self.getTodayStats, self)
 
-    local lines = {
-        "footer_content_added: " .. tostring(self.footer_content_added),
-        "header_content_added: " .. tostring(self.header_content_added),
-        "footer mode: " .. self:getFooterModeName(),
-        "footer settings.additional_content: " .. tostring(footer and footer.settings and footer.settings.additional_content),
-        "footer settings.all_at_once: " .. tostring(footer and footer.settings and footer.settings.all_at_once),
-        "footer additional count: " .. tostring(additional_count),
-        "statistics plugin: " .. tostring(statistics ~= nil),
-        "current session stats: " .. tostring(session and (session.time .. "s/" .. session.pages .. "p") or nil),
-        "today stats: " .. tostring(today and (today.time .. "s/" .. today.pages .. "p") or nil),
-        "sample footer text: " .. sample_text,
-    }
+        local lines = {
+            "footer_content_added: " .. tostring(self.footer_content_added),
+            "header_content_added: " .. tostring(self.header_content_added),
+            "footer mode: " .. tostring(self:getFooterModeName()),
+            "footer settings.additional_content: " .. tostring(footer and footer.settings and footer.settings.additional_content),
+            "footer settings.all_at_once: " .. tostring(footer and footer.settings and footer.settings.all_at_once),
+            "footer additional count: " .. tostring(additional_count),
+            "statistics plugin: " .. tostring(statistics ~= nil),
+            "current session stats ok: " .. tostring(session_ok),
+            "current session stats: " .. tostring(session_ok and session and (session.time .. "s/" .. session.pages .. "p") or session),
+            "today stats ok: " .. tostring(today_ok),
+            "today stats: " .. tostring(today_ok and today and (today.time .. "s/" .. today.pages .. "p") or today),
+            "sample footer text ok: " .. tostring(sample_ok),
+            "sample footer text: " .. tostring(sample_ok and sample_text or sample_text),
+        }
+
+        return table.concat(lines, "\n")
+    end)
 
     UIManager:show(InfoMessage:new{
-        text = table.concat(lines, "\n"),
+        text = ok and result or ("debug info failed: " .. tostring(result)),
     })
 end
 
