@@ -12,6 +12,20 @@ local function assertTrue(value, message)
     end
 end
 
+local ui_manager_state = {
+    shown = {},
+    unscheduled = {},
+    scheduled = {},
+    broadcasted = {},
+}
+
+local function resetUIManagerState()
+    ui_manager_state.shown = {}
+    ui_manager_state.unscheduled = {}
+    ui_manager_state.scheduled = {}
+    ui_manager_state.broadcasted = {}
+end
+
 package.preload["ui/event"] = function()
     return {
         new = function(_, name)
@@ -30,10 +44,25 @@ end
 
 package.preload["ui/uimanager"] = function()
     return {
-        show = function() end,
-        unschedule = function() end,
-        scheduleIn = function() end,
-        broadcastEvent = function() end,
+        show = function(_, widget)
+            table.insert(ui_manager_state.shown, widget)
+        end,
+        unschedule = function(_, callback, context)
+            table.insert(ui_manager_state.unscheduled, {
+                callback = callback,
+                context = context,
+            })
+        end,
+        scheduleIn = function(_, delay, callback, context)
+            table.insert(ui_manager_state.scheduled, {
+                delay = delay,
+                callback = callback,
+                context = context,
+            })
+        end,
+        broadcastEvent = function(_, event)
+            table.insert(ui_manager_state.broadcasted, event)
+        end,
     }
 end
 
@@ -85,6 +114,7 @@ local StatusStats = dofile("main.lua")
 
 local function newPlugin(settings, stats)
     saved_settings = settings
+    resetUIManagerState()
 
     local footer = {
         settings = {
@@ -266,6 +296,65 @@ assertTrue(menu_text:find("Session", 1, true) ~= nil, "session menu should exist
 assertTrue(menu_text:find("Today", 1, true) ~= nil, "today menu should exist")
 assertTrue(menu_text:find("Label style", 1, true) == nil, "label style menu should be removed")
 assertTrue(menu_text:find("Book stats", 1, true) == nil, "book stats menu should be removed")
+
+local time_refresh_plugin = newPlugin({
+    show_value_in_footer = true,
+    session = {
+        time = true,
+        pages = false,
+    },
+}, {
+    session = {
+        time = 125,
+        pages = 0,
+    },
+    today = {
+        time = 0,
+        pages = 0,
+    },
+})
+
+time_refresh_plugin:onReaderReady()
+
+assertEquals(ui_manager_state.scheduled[#ui_manager_state.scheduled].delay, 55, "time-based footer refresh should align to the next minute boundary")
+
+local pages_only_plugin = newPlugin({
+    show_value_in_footer = true,
+    session = {
+        time = false,
+        pages = true,
+    },
+}, {
+    session = {
+        time = 125,
+        pages = 3,
+    },
+    today = {
+        time = 0,
+        pages = 0,
+    },
+})
+
+pages_only_plugin:onReaderReady()
+
+assertEquals(#ui_manager_state.scheduled, 0, "page-only status display should not start a periodic ticker")
+
+local screensaver_plugin = newPlugin({
+    show_value_in_footer = true,
+}, {
+    session = {
+        time = 0,
+        pages = 0,
+    },
+    today = {
+        time = 0,
+        pages = 0,
+    },
+})
+
+screensaver_plugin:onOutOfScreenSaver()
+
+assertEquals(ui_manager_state.broadcasted[#ui_manager_state.broadcasted].name, "RefreshAdditionalContent", "leaving the screensaver should refresh the footer content")
 
 local startup_footer_plugin = newPlugin({
     show_value_in_footer = true,

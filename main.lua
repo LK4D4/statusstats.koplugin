@@ -90,6 +90,12 @@ end
 
 function StatusStats:onResume()
     self:refreshStatusBars()
+    self:startTicker()
+end
+
+function StatusStats:onOutOfScreenSaver()
+    self:refreshStatusBars()
+    self:startTicker()
 end
 
 function StatusStats:onCloseWidget()
@@ -331,10 +337,60 @@ function StatusStats:tickStatusBars()
     self:startTicker()
 end
 
+function StatusStats:getNextDurationRefreshDelay(seconds)
+    seconds = tonumber(seconds) or 0
+    if seconds <= 0 then
+        return 1
+    end
+    if seconds < 60 then
+        return 60 - seconds
+    end
+
+    local remainder = seconds % 60
+    if remainder == 0 then
+        return 60
+    end
+    return 60 - remainder
+end
+
+function StatusStats:getNextStatusRefreshDelay()
+    local delays = {}
+
+    if self.settings.session.time then
+        local session = self:getSessionStats()
+        if session then
+            table.insert(delays, self:getNextDurationRefreshDelay(session.time))
+        end
+    end
+
+    if self.settings.today.time then
+        local today = self:getTodayStats()
+        if today then
+            table.insert(delays, self:getNextDurationRefreshDelay(today.time))
+        end
+    end
+
+    if #delays == 0 then
+        if self.settings.session.time or self.settings.today.time then
+            return 60
+        end
+        return nil
+    end
+
+    local next_delay = delays[1]
+    for index = 2, #delays do
+        next_delay = math.min(next_delay, delays[index])
+    end
+    return next_delay
+end
+
 function StatusStats:startTicker()
     UIManager:unschedule(self.tickStatusBars, self)
     if self.settings.show_value_in_header or self.settings.show_value_in_footer then
-        UIManager:scheduleIn(60, self.tickStatusBars, self)
+        local next_delay = self:getNextStatusRefreshDelay()
+        if next_delay then
+            UIManager:scheduleIn(next_delay, self.tickStatusBars, self)
+        end
     end
 end
 
