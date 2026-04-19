@@ -12,10 +12,7 @@ local StatusStats = WidgetContainer:extend{
 local DEFAULT_SETTINGS = {
     show_value_in_header = false,
     show_value_in_footer = false,
-    current_session = {
-        time = false,
-        pages = false,
-    },
+    label_mode = "compact",
     today = {
         time = false,
         pages = false,
@@ -28,19 +25,24 @@ function StatusStats:normalizeSettings(settings)
     if settings.show_value_in_footer == nil then
         settings.show_value_in_footer = DEFAULT_SETTINGS.show_value_in_footer
     end
-
-    if type(settings.current_session) ~= "table" then
-        settings.current_session = {}
-    end
-    if settings.current_session.time == nil then
-        settings.current_session.time = DEFAULT_SETTINGS.current_session.time
-    end
-    if settings.current_session.pages == nil then
-        settings.current_session.pages = DEFAULT_SETTINGS.current_session.pages
+    if settings.label_mode ~= "long" then
+        settings.label_mode = DEFAULT_SETTINGS.label_mode
     end
 
     if type(settings.today) ~= "table" then
-        settings.today = {}
+        if type(settings.book) == "table" then
+            settings.today = {
+                time = settings.book.time,
+                pages = settings.book.pages,
+            }
+        elseif type(settings.current_session) == "table" then
+            settings.today = {
+                time = settings.current_session.time,
+                pages = settings.current_session.pages,
+            }
+        else
+            settings.today = {}
+        end
     end
     if settings.today.time == nil then
         settings.today.time = DEFAULT_SETTINGS.today.time
@@ -125,10 +127,6 @@ function StatusStats:getStatisticsPair(method_name)
     }
 end
 
-function StatusStats:getCurrentSessionStats()
-    return self:getStatisticsPair("getCurrentBookStats")
-end
-
 function StatusStats:getTodayStats()
     return self:getStatisticsPair("getTodayBookStats")
 end
@@ -191,7 +189,6 @@ function StatusStats:showDebugInfo()
         local statistics = self:getStatisticsPlugin()
         local additional_count = footer and footer.additional_footer_content and #footer.additional_footer_content or 0
         local sample_ok, sample_text = pcall(self.getStatusText, self, false)
-        local session_ok, session = pcall(self.getCurrentSessionStats, self)
         local today_ok, today = pcall(self.getTodayStats, self)
 
         local lines = {
@@ -202,8 +199,6 @@ function StatusStats:showDebugInfo()
             "footer settings.all_at_once: " .. tostring(footer and footer.settings and footer.settings.all_at_once),
             "footer additional count: " .. tostring(additional_count),
             "statistics plugin: " .. tostring(statistics ~= nil),
-            "current session stats ok: " .. tostring(session_ok),
-            "current session stats: " .. tostring(session_ok and session and (session.time .. "s/" .. session.pages .. "p") or session),
             "today stats ok: " .. tostring(today_ok),
             "today stats: " .. tostring(today_ok and today and (today.time .. "s/" .. today.pages .. "p") or today),
             "sample footer text ok: " .. tostring(sample_ok),
@@ -225,28 +220,48 @@ function StatusStats:getSectionText(label, stats, enabled)
 
     local parts = {}
     if enabled.time then
-        table.insert(parts, stats and self:formatDuration(stats.time) or _("N/A"))
+        local time_text = stats and self:formatDuration(stats.time) or _("N/A")
+        if self.settings.label_mode == "long" then
+            table.insert(parts, time_text)
+        else
+            table.insert(parts, string.format("⌛ %s", time_text))
+        end
     end
     if enabled.pages then
-        table.insert(parts, string.format("%sp", stats and tostring(stats.pages) or _("N/A")))
+        local pages_text = string.format("%sp", stats and tostring(stats.pages) or _("N/A"))
+        if self.settings.label_mode == "long" then
+            table.insert(parts, pages_text)
+        else
+            table.insert(parts, string.format("▤ %s", pages_text))
+        end
     end
 
     if #parts == 0 then
         return nil
     end
 
+    if self.settings.label_mode ~= "long" then
+        return table.concat(parts, " ")
+    end
+
     return string.format("%s: %s", label, table.concat(parts, ", "))
+end
+
+function StatusStats:getSectionLabel(section_name)
+    local labels = {
+        long = {
+            today = _("Today"),
+        },
+    }
+
+    local mode = labels[self.settings.label_mode] and self.settings.label_mode or DEFAULT_SETTINGS.label_mode
+    return labels[mode] and labels[mode][section_name] or nil
 end
 
 function StatusStats:getStatusText(is_header)
     local sections = {}
 
-    local current_session = self:getSectionText(_("Sess"), self:getCurrentSessionStats(), self.settings.current_session)
-    if current_session then
-        table.insert(sections, current_session)
-    end
-
-    local today = self:getSectionText(_("Today"), self:getTodayStats(), self.settings.today)
+    local today = self:getSectionText(self:getSectionLabel("today"), self:getTodayStats(), self.settings.today)
     if today then
         table.insert(sections, today)
     end
@@ -308,6 +323,12 @@ function StatusStats:toggleDisplaySetting(key, callback)
     self:refreshStatusBars()
 end
 
+function StatusStats:setLabelMode(mode)
+    self.settings.label_mode = mode == "long" and "long" or DEFAULT_SETTINGS.label_mode
+    self:persistSettings()
+    self:refreshStatusBars()
+end
+
 function StatusStats:addAdditionalHeaderContent()
     if self.ui.crelistener and not self.header_content_added then
         self.ui.crelistener:addAdditionalHeaderContent(self.additional_header_content_func)
@@ -351,29 +372,6 @@ function StatusStats:addToMainMenu(menu_items)
                 end,
             },
             {
-                text = _("Current session"),
-                sub_item_table = {
-                    {
-                        text = _("Time spent reading this session"),
-                        checked_func = function()
-                            return self.settings.current_session.time
-                        end,
-                        callback = function()
-                            self:toggleNestedSetting("current_session", "time")
-                        end,
-                    },
-                    {
-                        text = _("Pages read this session"),
-                        checked_func = function()
-                            return self.settings.current_session.pages
-                        end,
-                        callback = function()
-                            self:toggleNestedSetting("current_session", "pages")
-                        end,
-                    },
-                },
-            },
-            {
                 text = _("Today"),
                 sub_item_table = {
                     {
@@ -392,6 +390,29 @@ function StatusStats:addToMainMenu(menu_items)
                         end,
                         callback = function()
                             self:toggleNestedSetting("today", "pages")
+                        end,
+                    },
+                },
+            },
+            {
+                text = _("Label style"),
+                sub_item_table = {
+                    {
+                        text = _("Compact"),
+                        checked_func = function()
+                            return self.settings.label_mode ~= "long"
+                        end,
+                        callback = function()
+                            self:setLabelMode("compact")
+                        end,
+                    },
+                    {
+                        text = _("Long"),
+                        checked_func = function()
+                            return self.settings.label_mode == "long"
+                        end,
+                        callback = function()
+                            self:setLabelMode("long")
                         end,
                     },
                 },

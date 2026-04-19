@@ -99,9 +99,6 @@ local function newPlugin(settings, stats)
                 },
             },
             statistics = {
-                getCurrentBookStats = function()
-                    return stats.current_session.time, stats.current_session.pages
-                end,
                 getTodayBookStats = function()
                     return stats.today.time, stats.today.pages
                 end,
@@ -114,31 +111,57 @@ local function newPlugin(settings, stats)
 end
 
 local plugin = newPlugin({
-    current_session = {
+    today = {
         time = true,
         pages = true,
     },
-    today = {
-        time = true,
-        pages = false,
-    },
     show_value_in_footer = true,
 }, {
-    current_session = {
+    today = {
         time = 120,
         pages = 3,
-    },
-    today = {
-        time = 900,
-        pages = 12,
     },
 })
 
 assertEquals(
     plugin:getStatusText(false),
-    "Sess: 120s, 3p | Today: 900s",
-    "footer text should render current session and today stats"
+    "⌛ 120s ▤ 3p",
+    "compact footer text should render today stats with symbols"
 )
+
+local long_label_plugin = newPlugin({
+    today = {
+        time = true,
+        pages = false,
+    },
+    label_mode = "long",
+}, {
+    today = {
+        time = 180,
+        pages = 4,
+    },
+})
+
+assertEquals(
+    long_label_plugin:getStatusText(false),
+    "Today: 180s",
+    "long label mode should use a text label for today stats"
+)
+
+local migrated_plugin = newPlugin({
+    book = {
+        time = true,
+        pages = true,
+    },
+}, {
+    today = {
+        time = 60,
+        pages = 2,
+    },
+})
+
+assertTrue(migrated_plugin.settings.today.time == true, "legacy book time should migrate to today settings")
+assertTrue(migrated_plugin.settings.today.pages == true, "legacy book pages should migrate to today settings")
 
 local menu_items = {}
 plugin:addToMainMenu(menu_items)
@@ -152,5 +175,8 @@ end
 local menu_text = table.concat(menu_entry_names, "\n")
 assertTrue(not menu_text:find("Show plugin content in footer now", 1, true), "temporary footer debug action should be removed")
 assertTrue(menu_text:find("Show debug info", 1, true) ~= nil, "debug info action should still be available")
+assertTrue(menu_text:find("Label style", 1, true) ~= nil, "label style menu should exist")
+assertTrue(menu_text:find("Today", 1, true) ~= nil, "today menu should exist")
+assertTrue(menu_text:find("Book stats", 1, true) == nil, "book stats menu should be removed")
 
 print("statusstats smoke tests passed")
