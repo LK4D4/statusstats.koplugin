@@ -96,6 +96,9 @@ If you have a Lua interpreter available locally, run it from the repo root:
 lua tests/statusstats_spec.lua
 ```
 
+GitHub Actions also runs this smoke test automatically for pushes and pull
+requests to `main`.
+
 If you want the fastest loop, the most practical first test is to run it on Android with a short EPUB and compare the footer output against KOReader's built-in statistics page.
 
 ## Repo workflow
