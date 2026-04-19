@@ -2,18 +2,19 @@
 
 Standalone KOReader plugin that shows:
 
-- today's reading time and pages in the status bar
+- current-session and today's reading time and pages in the status bar
 
 It is designed to stay separate from KOReader core for now, so we can iterate in your own GitHub repo and keep changes flowing through pull requests.
 
 ## Current behavior
 
+- `Session` values are read from KOReader's built-in `statistics` plugin current-book session stats.
 - `Today` values are read from KOReader's built-in `statistics` plugin.
 - Footer display is off by default.
 - Alt status bar display can be enabled from the plugin menu.
 - The plugin tries to reuse KOReader's current footer item separator.
-- Label style can be switched between symbol-based compact output and long text labels.
-- Compact mode currently uses `⌛` for time and `▤` for pages.
+- Status text uses compact scope prefixes such as `S 12m 3p | T 48m 11p`.
+- Plugin-rendered time values never show seconds; sub-minute values render as `<1m`.
 
 ## Plugin menu
 
@@ -23,21 +24,21 @@ After installing the plugin, open:
 
 Options:
 
+- session
 - today
-- label style
 - show in status bar
 - show in alt status bar
 - show debug info
+
+Session submenu:
+
+- time spent reading this session
+- pages read this session
 
 Today submenu:
 
 - time spent reading today
 - pages read today
-
-Label style submenu:
-
-- compact
-- long
 
 ## Installation
 
@@ -68,12 +69,13 @@ Assuming your phone is Android:
 6. In KOReader, make sure the built-in `statistics` plugin is enabled.
 7. Open a book and read for a few minutes.
 8. Turn on `Show in status bar` in `Tools -> Status stats`.
-9. Verify that `Today` time/pages match KOReader's own statistics screens.
+9. Verify that `Session` and `Today` values match KOReader's own statistics screens.
 
 Good first checks:
 
-- disable `Today -> pages` and confirm only the time symbol/value remains
-- disable `Today -> time` and confirm only the page symbol/value remains
+- enable both `Session` and `Today` and confirm the footer shows `S ... | T ...`
+- disable `Today -> pages` and confirm only the today time value remains
+- disable `Session -> time` and confirm only the session page value remains
 - change KOReader's footer separator and confirm this plugin follows it
 - suspend and resume KOReader and confirm the values still refresh
 
@@ -85,8 +87,8 @@ It uses pure Lua stubs instead of a full KOReader runtime and focuses on the
 footer text generation path. That is useful for catching regressions such as:
 
 - crashes while building footer text
-- label formatting changes
-- label mode regressions
+- scope-prefix formatting changes
+- minute-only duration formatting regressions
 - accidentally leaving temporary debug actions in the menu
 
 If you have a Lua interpreter available locally, run it from the repo root:
@@ -98,7 +100,7 @@ lua tests/statusstats_spec.lua
 GitHub Actions also runs this smoke test automatically for pushes and pull
 requests to `main`.
 
-If you want the fastest loop, the most practical first test is to run it on Android with a short EPUB and compare the footer output against KOReader's built-in statistics page in both compact and long label modes.
+If you want the fastest loop, the most practical first test is to run it on Android with a short EPUB and compare the footer output against KOReader's built-in statistics page for both session and today values.
 
 ## Repo workflow
 
@@ -111,6 +113,5 @@ Recommended GitHub flow for this repo:
 
 ## Next PR ideas
 
-- try alternate compact symbols if `⌛` or `▤` do not render well on your device
 - support session stats persistence across reopen/restart
 - add average session speed and time-left estimates

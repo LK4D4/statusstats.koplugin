@@ -99,6 +99,9 @@ local function newPlugin(settings, stats)
                 },
             },
             statistics = {
+                getCurrentBookStats = function()
+                    return stats.session.time, stats.session.pages
+                end,
                 getTodayBookStats = function()
                     return stats.today.time, stats.today.pages
                 end,
@@ -111,57 +114,91 @@ local function newPlugin(settings, stats)
 end
 
 local plugin = newPlugin({
+    session = {
+        time = true,
+        pages = true,
+    },
     today = {
         time = true,
         pages = true,
     },
     show_value_in_footer = true,
 }, {
-    today = {
+    session = {
         time = 120,
         pages = 3,
+    },
+    today = {
+        time = 2880,
+        pages = 11,
     },
 })
 
 assertEquals(
     plugin:getStatusText(false),
-    "⌛ 120s ▤ 3p",
-    "compact footer text should render today stats with symbols"
+    "S 2m 3p | T 48m 11p",
+    "footer text should render session and today stats with scope prefixes"
 )
 
-local long_label_plugin = newPlugin({
-    today = {
+local session_only_plugin = newPlugin({
+    session = {
         time = true,
         pages = false,
-    },
-    label_mode = "long",
+    }
 }, {
-    today = {
+    session = {
         time = 180,
         pages = 4,
+    },
+    today = {
+        time = 0,
+        pages = 0,
     },
 })
 
 assertEquals(
-    long_label_plugin:getStatusText(false),
-    "Today: 180s",
-    "long label mode should use a text label for today stats"
+    session_only_plugin:getStatusText(false),
+    "S 3m",
+    "session-only output should omit disabled fields and sections"
 )
 
-local migrated_plugin = newPlugin({
-    book = {
+local sub_minute_plugin = newPlugin({
+    today = {
         time = true,
-        pages = true,
+        pages = false,
     },
 }, {
     today = {
-        time = 60,
+        time = 59,
         pages = 2,
+    },
+    session = {
+        time = 0,
+        pages = 0,
     },
 })
 
-assertTrue(migrated_plugin.settings.today.time == true, "legacy book time should migrate to today settings")
-assertTrue(migrated_plugin.settings.today.pages == true, "legacy book pages should migrate to today settings")
+assertEquals(
+    sub_minute_plugin:getStatusText(false),
+    "T <1m",
+    "sub-minute durations should not show seconds"
+)
+
+local default_settings_plugin = newPlugin({}, {
+    session = {
+        time = 0,
+        pages = 0,
+    },
+    today = {
+        time = 0,
+        pages = 0,
+    },
+})
+
+assertTrue(default_settings_plugin.settings.session.time == false, "session time should default to disabled")
+assertTrue(default_settings_plugin.settings.session.pages == false, "session pages should default to disabled")
+assertTrue(default_settings_plugin.settings.today.time == false, "today time should default to disabled")
+assertTrue(default_settings_plugin.settings.today.pages == false, "today pages should default to disabled")
 
 local menu_items = {}
 plugin:addToMainMenu(menu_items)
@@ -175,8 +212,9 @@ end
 local menu_text = table.concat(menu_entry_names, "\n")
 assertTrue(not menu_text:find("Show plugin content in footer now", 1, true), "temporary footer debug action should be removed")
 assertTrue(menu_text:find("Show debug info", 1, true) ~= nil, "debug info action should still be available")
-assertTrue(menu_text:find("Label style", 1, true) ~= nil, "label style menu should exist")
+assertTrue(menu_text:find("Session", 1, true) ~= nil, "session menu should exist")
 assertTrue(menu_text:find("Today", 1, true) ~= nil, "today menu should exist")
+assertTrue(menu_text:find("Label style", 1, true) == nil, "label style menu should be removed")
 assertTrue(menu_text:find("Book stats", 1, true) == nil, "book stats menu should be removed")
 
 print("statusstats smoke tests passed")
