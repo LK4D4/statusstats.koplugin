@@ -273,7 +273,7 @@ end
 function StatusStats:addToMainMenu(menu_items)
     menu_items.status_stats = {
         text = _("Status stats"),
-        sorting_hint = "more_tools",
+        sorting_hint = "tools",
         sub_item_table = {
             {
                 text = _("Current session"),
