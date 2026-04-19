@@ -116,15 +116,24 @@ function StatusStats:getStatisticsPlugin()
     return nil
 end
 
-function StatusStats:getStatisticsPair(method_name)
-    local statistics = self:getStatisticsPlugin()
+function StatusStats:getNowTimestamp()
+    return os.time()
+end
+
+function StatusStats:getBaseStatisticsPair(statistics, method_name)
     if not (statistics and statistics[method_name]) then
-        return nil
+        return {
+            time = 0,
+            pages = 0,
+        }
     end
 
     local ok, duration, pages = pcall(statistics[method_name], statistics)
     if not ok then
-        return nil
+        return {
+            time = 0,
+            pages = 0,
+        }
     end
 
     return {
@@ -133,12 +142,111 @@ function StatusStats:getStatisticsPair(method_name)
     }
 end
 
+function StatusStats:getLiveTupleDurationSince(statistics, page, data_list, tuple_index, boundary_time)
+    local tuple = data_list and data_list[tuple_index]
+    if type(tuple) ~= "table" then
+        return 0
+    end
+
+    local start_time = tonumber(tuple[1])
+    local stored_duration = tonumber(tuple[2]) or 0
+    if not start_time then
+        return 0
+    end
+
+    local effective_duration = math.max(stored_duration, 0)
+    local is_active_tuple = statistics.curr_page == page
+        and tuple_index == #data_list
+        and not statistics._reading_paused_ts
+
+    if is_active_tuple then
+        local settings = statistics.settings or {}
+        local min_sec = tonumber(settings.min_sec) or 0
+        local max_sec = tonumber(settings.max_sec) or math.huge
+        local elapsed = math.max(self:getNowTimestamp() - start_time, 0)
+
+        if elapsed >= min_sec then
+            effective_duration = math.max(effective_duration, math.min(elapsed, max_sec))
+        end
+    end
+
+    if effective_duration <= 0 then
+        return 0
+    end
+
+    boundary_time = tonumber(boundary_time) or 0
+    if start_time >= boundary_time then
+        return effective_duration
+    end
+
+    local end_time = start_time + effective_duration
+    if end_time <= boundary_time then
+        return 0
+    end
+
+    return end_time - boundary_time
+end
+
+function StatusStats:getLiveStatisticsPair(statistics, boundary_time)
+    if not (statistics and type(statistics.page_stat) == "table") then
+        return {
+            time = 0,
+            pages = 0,
+        }
+    end
+
+    local live_duration = 0
+    local live_pages = 0
+
+    for page, data_list in pairs(statistics.page_stat) do
+        if type(data_list) == "table" then
+            local page_duration = 0
+
+            for tuple_index = 1, #data_list do
+                page_duration = page_duration
+                    + self:getLiveTupleDurationSince(statistics, page, data_list, tuple_index, boundary_time)
+            end
+
+            if page_duration > 0 then
+                live_duration = live_duration + page_duration
+                live_pages = live_pages + 1
+            end
+        end
+    end
+
+    return {
+        time = live_duration,
+        pages = live_pages,
+    }
+end
+
+function StatusStats:getStatisticsPair(method_name, boundary_time)
+    local statistics = self:getStatisticsPlugin()
+    if not statistics then
+        return nil
+    end
+
+    local persisted = self:getBaseStatisticsPair(statistics, method_name)
+    local live = self:getLiveStatisticsPair(statistics, boundary_time)
+
+    return {
+        time = persisted.time + live.time,
+        pages = persisted.pages + live.pages,
+    }
+end
+
 function StatusStats:getTodayStats()
-    return self:getStatisticsPair("getTodayBookStats")
+    local now_stamp = self:getNowTimestamp()
+    local now_t = os.date("*t", now_stamp)
+    local from_begin_day = now_t.hour * 3600 + now_t.min * 60 + now_t.sec
+    local start_today_time = now_stamp - from_begin_day
+    return self:getStatisticsPair("getTodayBookStats", start_today_time)
 end
 
 function StatusStats:getSessionStats()
-    return self:getStatisticsPair("getCurrentBookStats")
+    local statistics = self:getStatisticsPlugin()
+    local boundary_time = statistics and statistics.start_current_period or self:getNowTimestamp()
+    return self:getStatisticsPair("getCurrentBookStats", boundary_time)
 end
 
 function StatusStats:formatDuration(seconds)

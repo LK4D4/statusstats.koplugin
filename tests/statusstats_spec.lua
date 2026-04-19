@@ -12,6 +12,20 @@ local function assertTrue(value, message)
     end
 end
 
+local real_os_time = os.time
+local fake_now
+
+os.time = function(value)
+    if value ~= nil then
+        return real_os_time(value)
+    end
+    return fake_now or real_os_time()
+end
+
+local function setFakeNow(value)
+    fake_now = value
+end
+
 local ui_manager_state = {
     shown = {},
     unscheduled = {},
@@ -185,6 +199,14 @@ local function newPlugin(settings, stats)
                 getTodayBookStats = function()
                     return stats.today.time, stats.today.pages
                 end,
+                page_stat = stats.page_stat,
+                curr_page = stats.curr_page,
+                start_current_period = stats.start_current_period,
+                _reading_paused_ts = stats.reading_paused_ts,
+                settings = stats.statistics_settings or {
+                    min_sec = 5,
+                    max_sec = 120,
+                },
             },
         },
     }, { __index = StatusStats })
@@ -297,6 +319,42 @@ assertTrue(menu_text:find("Today", 1, true) ~= nil, "today menu should exist")
 assertTrue(menu_text:find("Label style", 1, true) == nil, "label style menu should be removed")
 assertTrue(menu_text:find("Book stats", 1, true) == nil, "book stats menu should be removed")
 
+setFakeNow(1130)
+local live_session_plugin = newPlugin({
+    session = {
+        time = true,
+        pages = true,
+    },
+}, {
+    session = {
+        time = 0,
+        pages = 0,
+    },
+    today = {
+        time = 0,
+        pages = 0,
+    },
+    page_stat = {
+        [1] = {
+            { 1000, 30 },
+        },
+        [2] = {
+            { 1100, 0 },
+        },
+    },
+    curr_page = 2,
+    start_current_period = 900,
+    statistics_settings = {
+        min_sec = 5,
+        max_sec = 3600,
+    },
+})
+
+local live_session_stats = live_session_plugin:getSessionStats()
+assertEquals(live_session_stats.time, 60, "session stats should include live in-memory reading time")
+assertEquals(live_session_stats.pages, 2, "session stats should include live in-memory read pages")
+
+setFakeNow(1200)
 local time_refresh_plugin = newPlugin({
     show_value_in_footer = true,
     session = {
@@ -305,12 +363,23 @@ local time_refresh_plugin = newPlugin({
     },
 }, {
     session = {
-        time = 125,
+        time = 0,
         pages = 0,
     },
     today = {
         time = 0,
         pages = 0,
+    },
+    page_stat = {
+        [7] = {
+            { 1075, 0 },
+        },
+    },
+    curr_page = 7,
+    start_current_period = 1000,
+    statistics_settings = {
+        min_sec = 5,
+        max_sec = 3600,
     },
 })
 
@@ -441,5 +510,7 @@ assertTrue(not restore_footer_plugin.ui.view.footer.settings.additional_content,
 assertTrue(restore_footer_plugin.ui.view.footer.settings.all_at_once, "disabling footer stats should restore all-at-once setting")
 assertEquals(restore_footer_plugin.ui.view.footer.mode, "normal", "disabling footer stats should restore the previous footer mode")
 assertEquals(restore_footer_plugin.ui.view.footer.remove_calls, 1, "disabling footer stats should remove footer content once")
+
+os.time = real_os_time
 
 print("statusstats smoke tests passed")
