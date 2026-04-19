@@ -53,27 +53,36 @@ end
 
 function StatusStats:init()
     self.settings = self:normalizeSettings(G_reader_settings:readSetting("statusstats", DEFAULT_SETTINGS))
+    self.header_content_added = false
+    self.footer_content_added = false
 
     self.additional_header_content_func = function()
-        return self:getStatusText(true)
+        local ok, text = pcall(self.getStatusText, self, true)
+        if ok then
+            return text
+        end
+        return nil
     end
 
     self.additional_footer_content_func = function()
-        return self:getStatusText(false)
+        local ok, text = pcall(self.getStatusText, self, false)
+        if ok then
+            return text
+        end
+        return nil
     end
 
+    self.ui.menu:registerToMainMenu(self)
+end
+
+function StatusStats:onReaderReady()
     if self.settings.show_value_in_header then
         self:addAdditionalHeaderContent()
     end
     if self.settings.show_value_in_footer then
         self:addAdditionalFooterContent()
     end
-
-    self.ui.menu:registerToMainMenu(self)
     self:startTicker()
-end
-
-function StatusStats:onReaderReady()
     self:refreshStatusBars()
 end
 
@@ -82,6 +91,8 @@ function StatusStats:onResume()
 end
 
 function StatusStats:onCloseWidget()
+    self:removeAdditionalHeaderContent()
+    self:removeAdditionalFooterContent()
     UIManager:unschedule(self.tickStatusBars, self)
 end
 
@@ -230,27 +241,31 @@ function StatusStats:toggleDisplaySetting(key, callback)
 end
 
 function StatusStats:addAdditionalHeaderContent()
-    if self.ui.crelistener then
+    if self.ui.crelistener and not self.header_content_added then
         self.ui.crelistener:addAdditionalHeaderContent(self.additional_header_content_func)
+        self.header_content_added = true
     end
 end
 
 function StatusStats:removeAdditionalHeaderContent()
-    if self.ui.crelistener then
+    if self.ui.crelistener and self.header_content_added then
         self.ui.crelistener:removeAdditionalHeaderContent(self.additional_header_content_func)
+        self.header_content_added = false
         UIManager:broadcastEvent(Event:new("UpdateHeader"))
     end
 end
 
 function StatusStats:addAdditionalFooterContent()
-    if self.ui.view and self.ui.view.footer then
+    if self.ui.view and self.ui.view.footer and not self.footer_content_added then
         self.ui.view.footer:addAdditionalFooterContent(self.additional_footer_content_func)
+        self.footer_content_added = true
     end
 end
 
 function StatusStats:removeAdditionalFooterContent()
-    if self.ui.view and self.ui.view.footer then
+    if self.ui.view and self.ui.view.footer and self.footer_content_added then
         self.ui.view.footer:removeAdditionalFooterContent(self.additional_footer_content_func)
+        self.footer_content_added = false
         UIManager:broadcastEvent(Event:new("UpdateFooter", true))
     end
 end
