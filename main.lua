@@ -10,14 +10,14 @@ local StatusStats = WidgetContainer:extend{
 
 local DEFAULT_SETTINGS = {
     show_value_in_header = false,
-    show_value_in_footer = true,
+    show_value_in_footer = false,
     current_session = {
-        time = true,
-        pages = true,
+        time = false,
+        pages = false,
     },
     today = {
-        time = true,
-        pages = true,
+        time = false,
+        pages = false,
     },
 }
 
@@ -148,6 +148,34 @@ function StatusStats:getSeparator()
     return " | "
 end
 
+function StatusStats:ensureFooterModeShowsPluginContent()
+    local footer = self.ui and self.ui.view and self.ui.view.footer
+    if not (footer and footer.settings) then
+        return false
+    end
+
+    footer.settings.additional_content = true
+    if footer.settings.all_at_once == nil then
+        footer.settings.all_at_once = false
+    end
+
+    if footer.mode_list and footer.mode_list.additional_content then
+        footer.mode = footer.mode_list.additional_content
+    end
+
+    if footer.applyFooterMode then
+        footer:applyFooterMode(footer.mode)
+    end
+
+    if footer.refreshFooter then
+        footer:refreshFooter(true)
+    elseif footer.onUpdateFooter then
+        footer:onUpdateFooter(true, true)
+    end
+
+    return true
+end
+
 function StatusStats:getSectionText(label, stats, enabled)
     if not enabled.time and not enabled.pages then
         return nil
@@ -276,6 +304,14 @@ function StatusStats:addToMainMenu(menu_items)
         sorting_hint = "tools",
         sub_item_table = {
             {
+                text = _("Show plugin content in footer now"),
+                keep_menu_open = true,
+                callback = function()
+                    self:ensureFooterModeShowsPluginContent()
+                    self:refreshStatusBars()
+                end,
+            },
+            {
                 text = _("Current session"),
                 sub_item_table = {
                     {
@@ -345,6 +381,7 @@ function StatusStats:addToMainMenu(menu_items)
                     self:toggleDisplaySetting("show_value_in_footer", function(enabled)
                         if enabled then
                             self:addAdditionalFooterContent()
+                            self:ensureFooterModeShowsPluginContent()
                         else
                             self:removeAdditionalFooterContent()
                         end
