@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a plugin bug for a follow-up PR
+about: Report a bug in the plugin
 title: "[Bug] "
 labels: bug
 ---

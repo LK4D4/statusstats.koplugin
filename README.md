@@ -73,4 +73,5 @@ Run it from the repository root:
 lua tests/statusstats_spec.lua
 ```
 
-GitHub Actions runs this smoke test automatically on pushes and pull requests.
+GitHub Actions runs this smoke test automatically for pull requests and for
+pushes to `main`.

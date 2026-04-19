@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Describe a plugin improvement to implement through a PR
+about: Suggest an improvement for the plugin
 title: "[Feature] "
 labels: enhancement
 ---
