@@ -55,6 +55,7 @@ function StatusStats:init()
     self.settings = self:normalizeSettings(G_reader_settings:readSetting("statusstats", DEFAULT_SETTINGS))
     self.header_content_added = false
     self.footer_content_added = false
+    self.footer_state_before_plugin = nil
 
     self.additional_header_content_func = function()
         local ok, text = pcall(self.getStatusText, self, true)
@@ -81,6 +82,7 @@ function StatusStats:onReaderReady()
     end
     if self.settings.show_value_in_footer then
         self:addAdditionalFooterContent()
+        self:ensureFooterModeShowsPluginContent()
     end
     self:startTicker()
     self:refreshStatusBars()
@@ -177,6 +179,14 @@ function StatusStats:ensureFooterModeShowsPluginContent()
         return false
     end
 
+    if not self.footer_state_before_plugin then
+        self.footer_state_before_plugin = {
+            additional_content = footer.settings.additional_content,
+            all_at_once = footer.settings.all_at_once,
+            mode = footer.mode,
+        }
+    end
+
     footer.settings.additional_content = true
     if footer.settings.all_at_once == nil then
         footer.settings.all_at_once = false
@@ -196,6 +206,31 @@ function StatusStats:ensureFooterModeShowsPluginContent()
         footer:onUpdateFooter(true, true)
     end
 
+    return true
+end
+
+function StatusStats:restoreFooterModeIfNeeded()
+    local footer = self.ui and self.ui.view and self.ui.view.footer
+    local state = self.footer_state_before_plugin
+    if not (footer and footer.settings and state) then
+        return false
+    end
+
+    footer.settings.additional_content = state.additional_content
+    footer.settings.all_at_once = state.all_at_once
+    footer.mode = state.mode
+
+    if footer.applyFooterMode then
+        footer:applyFooterMode(footer.mode)
+    end
+
+    if footer.refreshFooter then
+        footer:refreshFooter(true)
+    elseif footer.onUpdateFooter then
+        footer:onUpdateFooter(true, true)
+    end
+
+    self.footer_state_before_plugin = nil
     return true
 end
 
@@ -346,6 +381,7 @@ function StatusStats:removeAdditionalFooterContent()
     if self.ui.view and self.ui.view.footer and self.footer_content_added then
         self.ui.view.footer:removeAdditionalFooterContent(self.additional_footer_content_func)
         self.footer_content_added = false
+        self:restoreFooterModeIfNeeded()
         UIManager:broadcastEvent(Event:new("UpdateFooter", true))
     end
 end

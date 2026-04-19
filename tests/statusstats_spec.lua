@@ -86,17 +86,67 @@ local StatusStats = dofile("main.lua")
 local function newPlugin(settings, stats)
     saved_settings = settings
 
+    local footer = {
+        settings = {
+            additional_content = false,
+            all_at_once = true,
+        },
+        mode_list = {
+            normal = "normal",
+            additional_content = "additional_content",
+        },
+        mode_index = {
+            normal = "normal",
+            additional_content = "additional_content",
+        },
+        mode = "normal",
+        add_calls = 0,
+        remove_calls = 0,
+        apply_calls = 0,
+        refresh_calls = 0,
+        update_calls = 0,
+    }
+
+    function footer:addAdditionalFooterContent(callback)
+        self.add_calls = self.add_calls + 1
+        self.additional_footer_content = self.additional_footer_content or {}
+        table.insert(self.additional_footer_content, callback)
+    end
+
+    function footer:removeAdditionalFooterContent(callback)
+        self.remove_calls = self.remove_calls + 1
+        if self.additional_footer_content then
+            for index, stored_callback in ipairs(self.additional_footer_content) do
+                if stored_callback == callback then
+                    table.remove(self.additional_footer_content, index)
+                    break
+                end
+            end
+        end
+    end
+
+    function footer:applyFooterMode(mode)
+        self.apply_calls = self.apply_calls + 1
+        self.mode = mode
+    end
+
+    function footer:refreshFooter(force)
+        self.refresh_calls = self.refresh_calls + 1
+        self.last_refresh_force = force
+    end
+
+    function footer:onUpdateFooter(refresh, force)
+        self.update_calls = self.update_calls + 1
+        self.last_update_args = { refresh, force }
+    end
+
     local plugin = setmetatable({
         ui = {
             menu = {
                 registerToMainMenu = function() end,
             },
             view = {
-                footer = {
-                    genSeparator = function()
-                        return " | "
-                    end,
-                },
+                footer = footer,
             },
             statistics = {
                 getCurrentBookStats = function()
@@ -216,5 +266,58 @@ assertTrue(menu_text:find("Session", 1, true) ~= nil, "session menu should exist
 assertTrue(menu_text:find("Today", 1, true) ~= nil, "today menu should exist")
 assertTrue(menu_text:find("Label style", 1, true) == nil, "label style menu should be removed")
 assertTrue(menu_text:find("Book stats", 1, true) == nil, "book stats menu should be removed")
+
+local startup_footer_plugin = newPlugin({
+    show_value_in_footer = true,
+}, {
+    session = {
+        time = 0,
+        pages = 0,
+    },
+    today = {
+        time = 0,
+        pages = 0,
+    },
+})
+
+startup_footer_plugin.ui.view.footer.settings.additional_content = false
+startup_footer_plugin.ui.view.footer.settings.all_at_once = true
+startup_footer_plugin.ui.view.footer.mode = "normal"
+
+startup_footer_plugin:onReaderReady()
+
+assertTrue(startup_footer_plugin.ui.view.footer.settings.additional_content, "reader ready should enable footer content mode when persisted")
+assertEquals(startup_footer_plugin.ui.view.footer.mode, "additional_content", "reader ready should switch footer mode to additional content")
+assertEquals(startup_footer_plugin.ui.view.footer.add_calls, 1, "reader ready should add footer content once")
+assertEquals(startup_footer_plugin.ui.view.footer.refresh_calls, 1, "reader ready should refresh the footer after restoring visibility")
+
+local restore_footer_plugin = newPlugin({
+    show_value_in_footer = false,
+}, {
+    session = {
+        time = 0,
+        pages = 0,
+    },
+    today = {
+        time = 0,
+        pages = 0,
+    },
+})
+
+restore_footer_plugin.ui.view.footer.settings.additional_content = false
+restore_footer_plugin.ui.view.footer.settings.all_at_once = true
+restore_footer_plugin.ui.view.footer.mode = "normal"
+
+restore_footer_plugin:addAdditionalFooterContent()
+assertTrue(restore_footer_plugin:ensureFooterModeShowsPluginContent(), "enabling footer stats should surface plugin content")
+assertTrue(restore_footer_plugin.ui.view.footer.settings.additional_content, "enabling footer stats should flip additional content on")
+assertEquals(restore_footer_plugin.ui.view.footer.mode, "additional_content", "enabling footer stats should switch footer mode")
+
+restore_footer_plugin:removeAdditionalFooterContent()
+
+assertTrue(not restore_footer_plugin.ui.view.footer.settings.additional_content, "disabling footer stats should restore additional content setting")
+assertTrue(restore_footer_plugin.ui.view.footer.settings.all_at_once, "disabling footer stats should restore all-at-once setting")
+assertEquals(restore_footer_plugin.ui.view.footer.mode, "normal", "disabling footer stats should restore the previous footer mode")
+assertEquals(restore_footer_plugin.ui.view.footer.remove_calls, 1, "disabling footer stats should remove footer content once")
 
 print("statusstats smoke tests passed")
