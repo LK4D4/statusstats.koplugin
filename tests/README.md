@@ -1,12 +1,12 @@
-## Tests
+# Tests
 
-This directory contains a tiny pure-Lua smoke test for `statusstats.koplugin`.
+This directory contains a small pure-Lua smoke test for
+`statusstats.koplugin`.
 
-It stubs the KOReader APIs that `main.lua` depends on and exercises the
-footer text generation path. That path would have caught the `_()` shadowing
-bug, because the test calls `getStatusText(false)` directly.
+The test stubs the KOReader APIs used by `main.lua` and covers the status text,
+menu structure, and footer lifecycle behavior.
 
-Run it with any Lua 5.x interpreter from the repository root:
+Run it from the repository root with any Lua 5.x interpreter:
 
 ```bash
 lua tests/statusstats_spec.lua
