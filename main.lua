@@ -1,4 +1,5 @@
 local Event = require("ui/event")
+local InfoMessage = require("ui/widget/infomessage")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local datetime = require("datetime")
@@ -148,6 +149,14 @@ function StatusStats:getSeparator()
     return " | "
 end
 
+function StatusStats:getFooterModeName()
+    local footer = self.ui and self.ui.view and self.ui.view.footer
+    if not (footer and footer.mode and footer.mode_index) then
+        return "n/a"
+    end
+    return footer.mode_index[footer.mode] or tostring(footer.mode)
+end
+
 function StatusStats:ensureFooterModeShowsPluginContent()
     local footer = self.ui and self.ui.view and self.ui.view.footer
     if not (footer and footer.settings) then
@@ -174,6 +183,32 @@ function StatusStats:ensureFooterModeShowsPluginContent()
     end
 
     return true
+end
+
+function StatusStats:showDebugInfo()
+    local footer = self.ui and self.ui.view and self.ui.view.footer
+    local statistics = self:getStatisticsPlugin()
+    local additional_count = footer and footer.additional_footer_content and #footer.additional_footer_content or 0
+    local sample_text = self:getStatusText(false) or "nil"
+    local session = self:getCurrentSessionStats()
+    local today = self:getTodayStats()
+
+    local lines = {
+        "footer_content_added: " .. tostring(self.footer_content_added),
+        "header_content_added: " .. tostring(self.header_content_added),
+        "footer mode: " .. self:getFooterModeName(),
+        "footer settings.additional_content: " .. tostring(footer and footer.settings and footer.settings.additional_content),
+        "footer settings.all_at_once: " .. tostring(footer and footer.settings and footer.settings.all_at_once),
+        "footer additional count: " .. tostring(additional_count),
+        "statistics plugin: " .. tostring(statistics ~= nil),
+        "current session stats: " .. tostring(session and (session.time .. "s/" .. session.pages .. "p") or nil),
+        "today stats: " .. tostring(today and (today.time .. "s/" .. today.pages .. "p") or nil),
+        "sample footer text: " .. sample_text,
+    }
+
+    UIManager:show(InfoMessage:new{
+        text = table.concat(lines, "\n"),
+    })
 end
 
 function StatusStats:getSectionText(label, stats, enabled)
@@ -303,6 +338,13 @@ function StatusStats:addToMainMenu(menu_items)
         text = _("Status stats"),
         sorting_hint = "tools",
         sub_item_table = {
+            {
+                text = _("Show debug info"),
+                keep_menu_open = true,
+                callback = function()
+                    self:showDebugInfo()
+                end,
+            },
             {
                 text = _("Show plugin content in footer now"),
                 keep_menu_open = true,
