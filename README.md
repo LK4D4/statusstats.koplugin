@@ -17,7 +17,7 @@ It is designed to stay separate from KOReader core for now, so we can iterate in
 
 ## Plugin menu
 
-After copying the plugin into KOReader's `plugins` directory, open:
+After installing the plugin, open:
 
 `Tools -> Status stats`
 
@@ -42,29 +42,33 @@ Today submenu:
 
 ### Manual install
 
-1. Copy the `statusstats.koplugin` folder into KOReader's `plugins` directory.
-2. Restart KOReader.
-3. Enable KOReader's built-in `statistics` plugin if it is not already enabled.
-4. Open a book, then go to `Tools -> Status stats`.
+1. Download or clone this repository.
+2. Rename the repository folder to `statusstats.koplugin` if needed.
+3. Copy that folder into KOReader's `plugins` directory.
+4. Restart KOReader.
+5. Enable KOReader's built-in `statistics` plugin if it is not already enabled.
+6. Open a book, then go to `Tools -> Status stats`.
 
 ### AppStore install
 
 The long-term goal is to make this installable through [App Store plugin for KOReader](https://github.com/omer-faruq/appstore.koplugin).
 
-That may not work yet until this plugin is published in its own GitHub repository and packaged in a way the AppStore plugin can discover and install, but it is the intended distribution path.
+The repository is now structured like a standalone `.koplugin` repo, which is the right direction for AppStore compatibility, but AppStore discovery/install still needs to be verified on device.
 
 ## Testing On Android Phone
 
 Assuming your phone is Android:
 
 1. Install KOReader on the phone.
-2. Copy the `statusstats.koplugin` folder into KOReader's Android plugins directory.
-3. Restart KOReader.
-4. In KOReader, make sure the built-in `statistics` plugin is enabled.
-5. Open a book and read for a few minutes.
-6. Turn on `Show in status bar` in `Tools -> Status stats`.
-7. Verify that `Current session` time/pages change during the session.
-8. Verify that `Today` time/pages match KOReader's own statistics screens for the same book/session context.
+2. Download the GitHub ZIP or copy the repo folder to the phone.
+3. Rename the extracted folder to `statusstats.koplugin` if the archive created a different folder name.
+4. Copy it into KOReader's Android plugins directory.
+5. Restart KOReader.
+6. In KOReader, make sure the built-in `statistics` plugin is enabled.
+7. Open a book and read for a few minutes.
+8. Turn on `Show in status bar` in `Tools -> Status stats`.
+9. Verify that `Current session` time/pages change during the session.
+10. Verify that `Today` time/pages match KOReader's own statistics screens for the same book/session context.
 
 Good first checks:
 
