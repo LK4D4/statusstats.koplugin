@@ -240,7 +240,7 @@ function StatusStats:getSectionText(label, stats, enabled)
     return table.concat(parts, self:getSeparator())
 end
 
-function StatusStats:getStatusText(_)
+function StatusStats:getStatusText(is_header)
     local sections = {}
 
     local current_session = self:getSectionText(_("CS"), self:getCurrentSessionStats(), self.settings.current_session)
