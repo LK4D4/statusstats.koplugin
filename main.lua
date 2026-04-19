@@ -225,30 +225,28 @@ function StatusStats:getSectionText(label, stats, enabled)
 
     local parts = {}
     if enabled.time then
-        local time_value = stats and self:formatDuration(stats.time) or _("N/A")
-        table.insert(parts, string.format("%s %s", label, time_value))
+        table.insert(parts, stats and self:formatDuration(stats.time) or _("N/A"))
     end
     if enabled.pages then
-        local pages_value = stats and tostring(stats.pages) or _("N/A")
-        table.insert(parts, string.format("%s %sp", label, pages_value))
+        table.insert(parts, string.format("%sp", stats and tostring(stats.pages) or _("N/A")))
     end
 
     if #parts == 0 then
         return nil
     end
 
-    return table.concat(parts, self:getSeparator())
+    return string.format("%s: %s", label, table.concat(parts, ", "))
 end
 
 function StatusStats:getStatusText(is_header)
     local sections = {}
 
-    local current_session = self:getSectionText(_("CS"), self:getCurrentSessionStats(), self.settings.current_session)
+    local current_session = self:getSectionText(_("Sess"), self:getCurrentSessionStats(), self.settings.current_session)
     if current_session then
         table.insert(sections, current_session)
     end
 
-    local today = self:getSectionText(_("TD"), self:getTodayStats(), self.settings.today)
+    local today = self:getSectionText(_("Today"), self:getTodayStats(), self.settings.today)
     if today then
         table.insert(sections, today)
     end
@@ -350,14 +348,6 @@ function StatusStats:addToMainMenu(menu_items)
                 keep_menu_open = true,
                 callback = function()
                     self:showDebugInfo()
-                end,
-            },
-            {
-                text = _("Show plugin content in footer now"),
-                keep_menu_open = true,
-                callback = function()
-                    self:ensureFooterModeShowsPluginContent()
-                    self:refreshStatusBars()
                 end,
             },
             {

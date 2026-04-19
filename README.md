@@ -11,9 +11,10 @@ It is designed to stay separate from KOReader core for now, so we can iterate in
 
 - `Today` values are read from KOReader's built-in `statistics` plugin when it is enabled.
 - `Current session` is read from KOReader's built-in `statistics` plugin.
-- Footer display is enabled by default.
+- Footer display is off by default.
 - Alt status bar display can be enabled from the plugin menu.
 - The plugin tries to reuse KOReader's current footer item separator.
+- Footer labels are currently compact text labels: `Sess` and `Today`.
 
 ## Plugin menu
 
@@ -27,6 +28,7 @@ Options:
 - today
 - show in status bar
 - show in alt status bar
+- show debug info
 
 Current session submenu:
 
@@ -77,6 +79,23 @@ Good first checks:
 - change KOReader's footer separator and confirm this plugin follows it
 - suspend and resume KOReader and confirm the values still refresh
 
+## Tests
+
+There is also a small smoke test in [tests/statusstats_spec.lua](/C:/Users/lk4d4/Documents/Codex/2026-04-19-i-want-to-create-a-koreader/tests/statusstats_spec.lua).
+
+It uses pure Lua stubs instead of a full KOReader runtime and focuses on the
+footer text generation path. That is useful for catching regressions such as:
+
+- crashes while building footer text
+- label formatting changes
+- accidentally leaving temporary debug actions in the menu
+
+If you have a Lua interpreter available locally, run it from the repo root:
+
+```bash
+lua tests/statusstats_spec.lua
+```
+
 If you want the fastest loop, the most practical first test is to run it on Android with a short EPUB and compare the footer output against KOReader's built-in statistics page.
 
 ## Repo workflow
@@ -90,7 +109,7 @@ Recommended GitHub flow for this repo:
 
 ## Next PR ideas
 
-- let the user rename `Today` to something friendlier if KOReader wording suggests a better term
+- try symbol-based labels once we know which glyphs look good on your device
 - offer short and long label styles for footer/header
 - support session stats persistence across reopen/restart
 - add average session speed and time-left estimates
