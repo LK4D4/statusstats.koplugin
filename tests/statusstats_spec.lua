@@ -354,7 +354,40 @@ local screensaver_plugin = newPlugin({
 
 screensaver_plugin:onOutOfScreenSaver()
 
+assertEquals(ui_manager_state.scheduled[#ui_manager_state.scheduled].delay, 0.001, "leaving the screensaver should schedule a short deferred refresh")
+
+local screensaver_call = ui_manager_state.scheduled[#ui_manager_state.scheduled]
+screensaver_call.callback(screensaver_call.context)
+
 assertEquals(ui_manager_state.broadcasted[#ui_manager_state.broadcasted].name, "RefreshAdditionalContent", "leaving the screensaver should refresh the footer content")
+
+local deferred_refresh_plugin = newPlugin({
+    show_value_in_footer = true,
+    session = {
+        time = true,
+        pages = false,
+    },
+}, {
+    session = {
+        time = 125,
+        pages = 0,
+    },
+    today = {
+        time = 0,
+        pages = 0,
+    },
+})
+
+deferred_refresh_plugin:onPageUpdate()
+
+assertEquals(#ui_manager_state.broadcasted, 0, "page updates should defer status refresh until statistics have updated")
+assertEquals(ui_manager_state.scheduled[#ui_manager_state.scheduled].delay, 0.001, "page updates should schedule a short deferred refresh")
+
+local deferred_call = ui_manager_state.scheduled[#ui_manager_state.scheduled]
+deferred_call.callback(deferred_call.context)
+
+assertEquals(ui_manager_state.broadcasted[#ui_manager_state.broadcasted].name, "RefreshAdditionalContent", "deferred page refresh should eventually update footer content")
+assertEquals(ui_manager_state.scheduled[#ui_manager_state.scheduled].delay, 55, "deferred page refresh should restart the smarter ticker")
 
 local startup_footer_plugin = newPlugin({
     show_value_in_footer = true,

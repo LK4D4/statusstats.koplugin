@@ -4,6 +4,8 @@ local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
 
+local DEFERRED_STATUS_REFRESH_DELAY = 0.001
+
 local StatusStats = WidgetContainer:extend{
     name = "statusstats",
 }
@@ -89,19 +91,18 @@ function StatusStats:onReaderReady()
 end
 
 function StatusStats:onResume()
-    self:refreshStatusBars()
-    self:startTicker()
+    self:scheduleDeferredStatusRefresh()
 end
 
 function StatusStats:onOutOfScreenSaver()
-    self:refreshStatusBars()
-    self:startTicker()
+    self:scheduleDeferredStatusRefresh()
 end
 
 function StatusStats:onCloseWidget()
     self:removeAdditionalHeaderContent()
     self:removeAdditionalFooterContent()
     UIManager:unschedule(self.tickStatusBars, self)
+    UIManager:unschedule(self.performDeferredStatusRefresh, self)
 end
 
 function StatusStats:persistSettings()
@@ -312,15 +313,25 @@ function StatusStats:getStatusText(is_header)
 end
 
 function StatusStats:onPageUpdate()
-    self:refreshStatusBars()
+    self:scheduleDeferredStatusRefresh()
 end
 
 function StatusStats:onPosUpdate()
-    self:refreshStatusBars()
+    self:scheduleDeferredStatusRefresh()
 end
 
 function StatusStats:onSuspend()
     self:refreshStatusBars()
+end
+
+function StatusStats:performDeferredStatusRefresh()
+    self:refreshStatusBars()
+    self:startTicker()
+end
+
+function StatusStats:scheduleDeferredStatusRefresh(delay)
+    UIManager:unschedule(self.performDeferredStatusRefresh, self)
+    UIManager:scheduleIn(delay or DEFERRED_STATUS_REFRESH_DELAY, self.performDeferredStatusRefresh, self)
 end
 
 function StatusStats:refreshStatusBars()
