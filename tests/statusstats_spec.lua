@@ -482,6 +482,30 @@ assertEquals(startup_footer_plugin.ui.view.footer.mode, "additional_content", "r
 assertEquals(startup_footer_plugin.ui.view.footer.add_calls, 1, "reader ready should add footer content once")
 assertEquals(startup_footer_plugin.ui.view.footer.refresh_calls, 1, "reader ready should refresh the footer after restoring visibility")
 
+local hidden_footer_plugin = newPlugin({
+    show_value_in_footer = true,
+}, {
+    session = {
+        time = 0,
+        pages = 0,
+    },
+    today = {
+        time = 0,
+        pages = 0,
+    },
+})
+
+hidden_footer_plugin.ui.view.footer.mode_list.off = "off"
+hidden_footer_plugin.ui.view.footer.mode_index.off = "off"
+hidden_footer_plugin.ui.view.footer.mode = "off"
+hidden_footer_plugin.ui.view.footer.settings.additional_content = false
+
+hidden_footer_plugin:onReaderReady()
+
+assertEquals(hidden_footer_plugin.ui.view.footer.mode, "off", "reader ready should not force a hidden footer visible")
+assertTrue(not hidden_footer_plugin.ui.view.footer.settings.additional_content, "reader ready should respect hidden footer additional content state")
+assertEquals(hidden_footer_plugin.ui.view.footer.add_calls, 1, "reader ready should still register footer content while hidden")
+
 local restore_footer_plugin = newPlugin({
     show_value_in_footer = false,
 }, {

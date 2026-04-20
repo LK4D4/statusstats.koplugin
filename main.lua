@@ -84,7 +84,9 @@ function StatusStats:onReaderReady()
     end
     if self.settings.show_value_in_footer then
         self:addAdditionalFooterContent()
-        self:ensureFooterModeShowsPluginContent()
+        if not self:isFooterHidden() then
+            self:ensureFooterModeShowsPluginContent()
+        end
     end
     self:startTicker()
     self:refreshStatusBars()
@@ -286,6 +288,14 @@ function StatusStats:getFooterModeName()
         return "n/a"
     end
     return footer.mode_index[footer.mode] or tostring(footer.mode)
+end
+
+function StatusStats:isFooterHidden()
+    local footer = self.ui and self.ui.view and self.ui.view.footer
+    if not (footer and footer.mode and footer.mode_list and footer.mode_list.off) then
+        return false
+    end
+    return footer.mode == footer.mode_list.off
 end
 
 function StatusStats:ensureFooterModeShowsPluginContent()
